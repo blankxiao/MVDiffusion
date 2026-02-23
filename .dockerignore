@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+*.egg-info/
+
+# 数据和权重（通过挂载卷提供）
+data/
+weights/*.ckpt
+outputs/
+cache/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# 文档
+*.gif
+*.md
+
