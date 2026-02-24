@@ -153,8 +153,9 @@ def run_inference(
         im.save(str(p))
         image_paths.append(str(p))
 
-    if gen_video:
-        from generate_video_tool.pano_video_generation import generate_video
-        generate_video(image_paths, str(out_dir), True)
+    # 与 demo.py 一致：始终调用 generate_video 以生成 pano.png，gen_video 仅控制是否生成 video.mp4
+    from generate_video_tool.pano_video_generation import generate_video
+    generate_video(image_paths, str(out_dir), gen_video)
+    image_paths.append(str(out_dir / "pano.png"))
 
     return str(out_dir), image_paths
