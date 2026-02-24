@@ -1,39 +1,34 @@
-# 使用 NVIDIA CUDA 基础镜像（兼容驱动 30.0.14.7256）
-FROM nvidia/cuda:11.0.3-cudnn8-runtime-ubuntu20.04
+# MVDiffusion inference service: FastAPI + queue worker
+# Build: docker build -t mvdiffusion-inference:latest .
+# Run: docker run --env-file .env -p 9000:9000 -v ./weights:/app/weights -v ./outputs:/app/outputs mvdiffusion-inference:latest
 
-# 设置环境变量
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONUNBUFFERED=1
+FROM python:3.10-slim
 
-# 安装系统依赖
-RUN apt-get update && apt-get install -y \
-    python3.9 \
-    python3-pip \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    libgl1-mesa-glx \
-    exiftool \
-    wget \
-    && rm -rf /var/lib/apt/lists/*
-
-# 设置工作目录
 WORKDIR /app
 
-# 复制项目文件
-COPY . /app
+# System deps if needed (e.g. for PyTorch/CUDA in a full image)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# 配置 pip 镜像源并安装依赖
-RUN pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
-    pip3 config set global.extra-index-url https://pypi.org/simple && \
-    pip3 install --no-cache-dir -r requirements.txt && \
-    pip3 install --no-cache-dir PyExifTool
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# 创建输出目录
-RUN mkdir -p /app/outputs /app/weights
+COPY app/ ./app/
+COPY configs/ ./configs/
+COPY src/ ./src/
+COPY generate_video_tool/ ./generate_video_tool/
+# demo.py and weights/ are optional for placeholder; mount weights at runtime
+COPY demo.py .
 
-# 设置默认命令
-CMD ["/bin/bash"]
+# Default env (override via -e or --env-file)
+ENV HTTP_HOST=0.0.0.0
+ENV HTTP_PORT=9000
+ENV REDIS_URL=redis://localhost:6379/0
+ENV TASK_QUEUE=panorama:task
+ENV RESULT_QUEUE=panorama:result
 
+EXPOSE 9000
+
+# Use env at runtime: -e HTTP_HOST=0.0.0.0 -e HTTP_PORT=9000 or --env-file
+CMD ["sh", "-c", "exec python -m uvicorn app.main:app --host ${HTTP_HOST:-0.0.0.0} --port ${HTTP_PORT:-9000}"]

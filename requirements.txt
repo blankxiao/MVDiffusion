@@ -9,3 +9,9 @@ wrapt==1.15.0
 numpy==1.23.5
 google==3.0.0
 googleapis-common-protos==1.59.0
+
+# Inference service (FastAPI + queue)
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+redis>=5.0.0
+pydantic-settings>=2.0.0
