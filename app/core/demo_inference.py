@@ -2,7 +2,7 @@
 基于 app 内封装 run_inference 的进程内调用：文生图与图+文外扩，不依赖子进程与 demo.py。
 """
 import logging
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from app.config import Settings
 from app.core.inference import InferenceResult, InferenceService
@@ -17,7 +17,7 @@ def _run_in_process(
     image_path: Optional[str] = None,
     gen_video: bool = False,
     text_path: Optional[str] = None,
-) -> tuple[bool, Optional[str], Optional[List[str]], str]:
+) -> Tuple[bool, Optional[str], Optional[List[str]], str]:
     """进程内调用 app 内封装的 run_inference，返回 (success, output_dir, image_paths, message)。"""
     try:
         output_dir, image_paths = run_pano_inference(
