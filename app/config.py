@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     project_root: str = Field(default="/app", description="项目根目录，含 demo.py、configs、weights、outputs")
     weights_dir: str = Field(default="/app/weights", description="模型权重目录")
     outputs_dir: str = Field(default="/app/outputs", description="推理输出目录")
+    hf_home: Optional[str] = Field(default="./cache/huggingface", description="HuggingFace 缓存目录，供 CLIPTokenizer 等使用；相对路径时基于 project_root")
 
     # 日志
     log_level: str = Field(default="INFO", description="日志级别")

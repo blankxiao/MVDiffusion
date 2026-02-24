@@ -3,7 +3,9 @@ FastAPI 应用：健康/就绪探针与后台队列 Worker。
 配置通过环境变量读取，便于 Docker/K8s 部署。
 """
 import logging
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 
@@ -21,10 +23,22 @@ def _configure_logging() -> None:
     )
 
 
+def _apply_hf_home(project_root: str, hf_home: str) -> None:
+    """将 HF_HOME 设为绝对路径并写入环境，使 transformers 从项目缓存加载 tokenizer。"""
+    if not hf_home:
+        return
+    root = Path(project_root).resolve()
+    p = Path(hf_home)
+    if not p.is_absolute():
+        p = root / p
+    os.environ["HF_HOME"] = str(p.resolve())
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _configure_logging()
     settings = get_settings()
+    _apply_hf_home(settings.project_root, settings.hf_home)
     start_worker(inference_service=DemoInProcessInferenceService(settings))
     yield
     stop_worker()
