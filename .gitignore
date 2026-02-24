@@ -12,3 +12,4 @@ __pycache__/
 *.pyzz
 cache/
 *.md
+*.gz
