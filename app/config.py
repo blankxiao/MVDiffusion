@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     http_host: str = Field(default="0.0.0.0", description="FastAPI 监听地址")
     http_port: int = Field(default=9000, description="FastAPI 监听端口")
 
-    # Redis 任务队列
+    # Redis 任务队列（ENABLE_REDIS=false 时不连接 Redis、不启动 Worker，仅用 HTTP 测试接口）
+    enable_redis: bool = Field(default=True, description="是否启用 Redis 与后台 Worker；false 时仅提供 HTTP 接口")
     redis_url: str = Field(default="redis://localhost:6379/0", description="Redis 连接 URL")
     task_queue: str = Field(default="panorama:task", description="待消费任务队列名")
     result_queue: str = Field(default="panorama:result", description="推理结果队列名")
@@ -34,6 +35,13 @@ class Settings(BaseSettings):
 
     # 日志
     log_level: str = Field(default="INFO", description="日志级别")
+
+    # 阿里云 OSS（从环境变量读取，不配置则不上传）
+    oss_endpoint: Optional[str] = Field(default=None, description="OSS Endpoint，如 oss-cn-hangzhou.aliyuncs.com")
+    oss_access_key_id: Optional[str] = Field(default=None, description="OSS AccessKey ID")
+    oss_access_key_secret: Optional[str] = Field(default=None, description="OSS AccessKey Secret")
+    oss_bucket_name: Optional[str] = Field(default=None, description="OSS Bucket 名称")
+    oss_bucket_domain: Optional[str] = Field(default=None, description="自定义域名或公网访问域名，用于返回可访问 URL；不填则用 endpoint 拼 bucket 域名")
 
 
 def get_settings() -> Settings:

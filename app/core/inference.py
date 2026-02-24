@@ -16,6 +16,7 @@ class InferenceResult:
     success: bool
     output_dir: Optional[str] = None
     image_paths: Optional[List[str]] = None
+    pano_oss_url: Optional[str] = None
     message: Optional[str] = None
 
 
@@ -30,6 +31,7 @@ class InferenceService(ABC):
         self,
         text: str,
         *,
+        user_id: Optional[str] = None,
         image_path: Optional[str] = None,
         mode: str = "text2pano",
         gen_video: bool = False,
@@ -38,6 +40,7 @@ class InferenceService(ABC):
     ) -> InferenceResult:
         """
         执行推理。文生图仅传 text；图+文外扩传 text 与 image_path。
+        user_id 用于 OSS 存储路径前缀。
         """
         pass
 
@@ -49,6 +52,7 @@ class PlaceholderInferenceService(InferenceService):
         self,
         text: str,
         *,
+        user_id: Optional[str] = None,
         image_path: Optional[str] = None,
         mode: str = "text2pano",
         gen_video: bool = False,

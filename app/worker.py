@@ -41,6 +41,7 @@ def _run_worker(
             logger.info("处理任务 task_id=%s mode=%s", task.task_id, task.mode)
             result: InferenceResult = inference_service.run(
                 task.text,
+                user_id=task.user_id,
                 image_path=task.image_path,
                 mode=task.mode,
                 gen_video=task.gen_video,
@@ -52,6 +53,7 @@ def _run_worker(
                 success=result.success,
                 output_dir=result.output_dir,
                 image_paths=result.image_paths,
+                pano_oss_url=result.pano_oss_url,
                 message=result.message,
             )
             redis.lpush(settings.result_queue, result_msg.model_dump_json())

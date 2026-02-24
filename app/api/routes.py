@@ -23,7 +23,9 @@ def health():
 
 @router.get("/ready")
 def ready(settings: Settings = Depends(get_settings)):
-    """就绪探针：进程与 Redis 均可达，用于 K8s readinessProbe。"""
+    """就绪探针：若启用 Redis 则检查进程与 Redis 均可达；未启用 Redis 时仅返回就绪。"""
+    if not settings.enable_redis:
+        return {"status": "ready"}
     try:
         r = Redis.from_url(settings.redis_url)
         r.ping()
@@ -42,15 +44,22 @@ def test_inference(
     """
     测试用 HTTP 接口：仅文生图。提交文案后同步执行 demo.py 并返回结果。
     仅用于联调与验证，生产请走任务队列。
+    可选传 user_id，用于 OSS 存储路径前缀；成功后返回 pano_oss_url。
     """
     text = (body.text or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="text 不能为空")
     service = DemoInProcessInferenceService(settings)
-    result = service.run(text, mode="text2pano", timeout_seconds=settings.inference_timeout_seconds)
+    result = service.run(
+        text,
+        user_id=body.user_id,
+        mode="text2pano",
+        timeout_seconds=settings.inference_timeout_seconds,
+    )
     return TestInferenceResponse(
         success=result.success,
         output_dir=result.output_dir,
         image_paths=result.image_paths,
+        pano_oss_url=result.pano_oss_url,
         message=result.message,
     )

@@ -12,6 +12,7 @@ InferenceMode = Literal["text2pano", "outpaint"]
 class TaskMessage(BaseModel):
     """从任务队列消费的消息。"""
     task_id: str = Field(..., description="任务唯一标识")
+    user_id: str = Field(default="default", description="用户/业务标识，用于 OSS 存储路径前缀")
     text: str = Field(..., description="全景图生成提示文案")
     mode: InferenceMode = Field(default="text2pano", description="text2pano=文生图, outpaint=图+文外扩")
     image_path: Optional[str] = Field(default=None, description="参考图路径，outpaint 时必填")
@@ -25,12 +26,14 @@ class ResultMessage(BaseModel):
     success: bool = Field(..., description="推理是否成功")
     output_dir: Optional[str] = Field(default=None, description="输出目录路径")
     image_paths: Optional[List[str]] = Field(default=None, description="生成图片路径列表")
+    pano_oss_url: Optional[str] = Field(default=None, description="全景图 pano.png 上传 OSS 后的可访问 URL")
     message: Optional[str] = Field(default=None, description="错误或状态信息")
 
 
 class TestInferenceRequest(BaseModel):
     """测试接口：文生图请求体。"""
     text: str = Field(..., description="全景图提示文案")
+    user_id: str = Field(default="default", description="用户/业务标识，用于 OSS 存储路径前缀")
 
 
 class TestInferenceResponse(BaseModel):
@@ -38,4 +41,5 @@ class TestInferenceResponse(BaseModel):
     success: bool = Field(..., description="是否成功")
     output_dir: Optional[str] = Field(default=None, description="输出目录路径")
     image_paths: Optional[List[str]] = Field(default=None, description="生成图片路径列表")
+    pano_oss_url: Optional[str] = Field(default=None, description="全景图 pano.png 上传 OSS 后的可访问 URL")
     message: Optional[str] = Field(default=None, description="错误或状态信息")

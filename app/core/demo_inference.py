@@ -1,11 +1,14 @@
 """
 基于 app 内封装 run_inference 的进程内调用：文生图与图+文外扩，不依赖子进程与 demo.py。
+推理成功后仅将 pano.png 上传 OSS，OSS 配置从环境变量读取。
 """
 import logging
+import os
 from typing import List, Optional, Tuple
 
 from app.config import Settings
 from app.core.inference import InferenceResult, InferenceService
+from app.core.oss_upload import upload_pano_to_oss
 from app.core.pano_inference_impl import run_inference as run_pano_inference
 
 logger = logging.getLogger(__name__)
@@ -43,6 +46,7 @@ class DemoInProcessInferenceService(InferenceService):
         self,
         text: str,
         *,
+        user_id: Optional[str] = None,
         image_path: Optional[str] = None,
         mode: str = "text2pano",
         gen_video: bool = False,
@@ -59,6 +63,24 @@ class DemoInProcessInferenceService(InferenceService):
             gen_video=gen_video,
             text_path=text_path,
         )
-        if success:
-            return InferenceResult(success=True, output_dir=output_dir, image_paths=image_paths)
-        return InferenceResult(success=False, message=message or "推理失败")
+        if not success:
+            return InferenceResult(success=False, message=message or "推理失败")
+
+        pano_oss_url: Optional[str] = None
+        pano_path = os.path.join(output_dir, "pano.png") if output_dir else None
+        if pano_path and self.settings.oss_endpoint and self.settings.oss_access_key_id:
+            pano_oss_url = upload_pano_to_oss(
+                pano_path,
+                user_id or "default",
+                endpoint=self.settings.oss_endpoint,
+                access_key_id=self.settings.oss_access_key_id,
+                access_key_secret=self.settings.oss_access_key_secret or "",
+                bucket_name=self.settings.oss_bucket_name or "",
+                bucket_domain=self.settings.oss_bucket_domain,
+            )
+        return InferenceResult(
+            success=True,
+            output_dir=output_dir,
+            image_paths=image_paths,
+            pano_oss_url=pano_oss_url,
+        )

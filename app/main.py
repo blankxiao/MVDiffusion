@@ -39,9 +39,11 @@ async def lifespan(app: FastAPI):
     _configure_logging()
     settings = get_settings()
     _apply_hf_home(settings.project_root, settings.hf_home)
-    start_worker(inference_service=DemoInProcessInferenceService(settings))
+    if settings.enable_redis:
+        start_worker(inference_service=DemoInProcessInferenceService(settings))
     yield
-    stop_worker()
+    if settings.enable_redis:
+        stop_worker()
 
 
 app = FastAPI(
