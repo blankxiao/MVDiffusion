@@ -54,7 +54,7 @@ echo "================================================"
 cd /root/autodl-tmp/MVDiffusion
 export HF_HOME="/root/autodl-tmp/MVDiffusion/cache/huggingface"
 export OMP_NUM_THREADS=8
-python demo.py --text "This kitchen is a charming blend of rustic and modern, featuring a large reclaimed wood island with marble countertop."
+python demo.py --text "A modern city street at golden hour, with tall glass skyscrapers, bustling sidewalks, warm sunlight casting long shadows, and urban architecture."
 
 echo ""
 echo "================================================"

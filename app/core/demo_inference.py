@@ -66,6 +66,7 @@ class DemoInProcessInferenceService(InferenceService):
         if not success:
             return InferenceResult(success=False, message=message or "推理失败")
 
+        logger.info("[进度] 推理成功，准备上传 OSS（若已配置）...")
         pano_oss_url: Optional[str] = None
         pano_path = os.path.join(output_dir, "pano.png") if output_dir else None
         if pano_path and self.settings.oss_endpoint and self.settings.oss_access_key_id:
@@ -78,6 +79,8 @@ class DemoInProcessInferenceService(InferenceService):
                 bucket_name=self.settings.oss_bucket_name or "",
                 bucket_domain=self.settings.oss_bucket_domain,
             )
+        if pano_oss_url:
+            logger.info("[进度] OSS 上传完成 url=%s", pano_oss_url)
         return InferenceResult(
             success=True,
             output_dir=output_dir,

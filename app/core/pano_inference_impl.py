@@ -2,6 +2,7 @@
 App 内封装：仿照 demo 的全景推理逻辑，文生图与图+文外扩，供服务进程内直接调用。
 不修改 demo.py，所有路径基于 project_root。
 """
+import logging
 import os
 import sys
 import yaml
@@ -14,6 +15,8 @@ from typing import List, Optional, Tuple
 
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "True")
 torch.manual_seed(0)
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_project_root_in_path(project_root: str) -> None:
@@ -72,25 +75,35 @@ def run_inference(
     :return: (output_dir, image_paths)
     :raises: Exception on failure
     """
+    mode = "outpaint" if (image_path and image_path.strip()) else "text2pano"
+    logger.info("[进度] 开始全景推理 mode=%s", mode)
+
     _ensure_project_root_in_path(project_root)
     root = Path(project_root).resolve()
+    logger.info("[进度] 加载模型类...")
     PanoGenerator, PanoOutpaintGenerator = _import_models()
 
     if not image_path or not image_path.strip():
+        logger.info("[进度] 加载配置 pano_generation.yaml ...")
         with open(root / "configs" / "pano_generation.yaml", "rb") as f:
             config = yaml.load(f, Loader=yaml.SafeLoader)
+        logger.info("[进度] 加载权重 pano.ckpt（文生图）...")
         model = PanoGenerator(config)
         ckpt = torch.load(str(root / "weights" / "pano.ckpt"), map_location="cpu")
         model.load_state_dict(ckpt["state_dict"], strict=True)
         model = model.cuda()
+        logger.info("[进度] 模型已加载并移至 GPU")
         img = None
     else:
+        logger.info("[进度] 加载配置 pano_generation_outpaint.yaml ...")
         with open(root / "configs" / "pano_generation_outpaint.yaml", "rb") as f:
             config = yaml.load(f, Loader=yaml.SafeLoader)
+        logger.info("[进度] 加载权重 pano_outpaint.ckpt（外扩）...")
         model = PanoOutpaintGenerator(config)
         ckpt = torch.load(str(root / "weights" / "pano_outpaint.ckpt"), map_location="cpu")
         model.load_state_dict(ckpt["state_dict"], strict=True)
         model = model.cuda()
+        logger.info("[进度] 模型已加载并移至 GPU，读取参考图...")
         img_path = Path(image_path)
         if not img_path.is_absolute():
             img_path = root / img_path
@@ -136,7 +149,9 @@ def run_inference(
     K_t = torch.tensor(Ks).float().cuda()[None]
     R_t = torch.tensor(Rs).float().cuda()[None]
     batch = {"images": images, "prompt": prompt, "R": R_t, "K": K_t}
+    logger.info("[进度] 开始模型推理（8 视角生成，耗时较长）...")
     images_pred = model.inference(batch)
+    logger.info("[进度] 模型推理完成，保存 8 张视角图...")
 
     out_dir = root / "outputs" / ("results" + datetime.now().strftime("--%Y%m%d-%H%M%S"))
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -152,10 +167,12 @@ def run_inference(
         p = out_dir / f"{i}.png"
         im.save(str(p))
         image_paths.append(str(p))
+    logger.info("[进度] 8 张视角图已保存，生成全景图 pano.png ...")
 
     # 与 demo.py 一致：始终调用 generate_video 以生成 pano.png，gen_video 仅控制是否生成 video.mp4
     from generate_video_tool.pano_video_generation import generate_video
     generate_video(image_paths, str(out_dir), gen_video)
     image_paths.append(str(out_dir / "pano.png"))
+    logger.info("[进度] 全景推理完成 output_dir=%s", out_dir)
 
     return str(out_dir), image_paths

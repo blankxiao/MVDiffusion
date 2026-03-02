@@ -69,7 +69,8 @@ if args.image_path is None:
     config_file = 'configs/pano_generation.yaml'
     config = yaml.load(open(config_file, 'rb'), Loader=yaml.SafeLoader)
     model = PanoGenerator(config)
-    model.load_state_dict(torch.load('weights/pano.ckpt', map_location='cpu')['state_dict'], strict=True)
+    # model.load_state_dict(torch.load('weights/pano.ckpt', map_location='cpu')['state_dict'], strict=True)
+    model.load_state_dict(torch.load('weights/last.ckpt', map_location='cpu')['state_dict'], strict=False)
     #saved_ckpt = torch.load('weights/pano.ckpt', map_location='cpu')
     #model.load_state_dict(saved_ckpt, strict=False)
     model=model.cuda()

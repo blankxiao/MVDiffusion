@@ -55,9 +55,13 @@ def upload_pano_to_oss(
         bucket.put_object_from_file(object_key, local_path)
         logger.info("OSS 上传成功: %s -> %s", local_path, object_key)
 
-        if bucket_domain:
-            domain = bucket_domain.rstrip("/")
-            return f"{domain}/{object_key}"
+        # 优先使用自定义域名（先取参数，再取环境变量，确保与 OSS 绑定域名一致）
+        domain_raw = bucket_domain
+        domain_raw = domain_raw.strip().rstrip("/")
+        if domain_raw:
+            if not domain_raw.startswith("http://") and not domain_raw.startswith("https://"):
+                domain_raw = f"http://{domain_raw}"
+            return f"{domain_raw}/{object_key}"
         return f"https://{bucket_name}.{endpoint}/{object_key}"
     except Exception as e:
         logger.exception("OSS 上传失败: %s", e)
