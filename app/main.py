@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from app.api.routes import router as health_router, test_router
 from app.config import get_settings
 from app.core.demo_inference import DemoInProcessInferenceService
+from app.core.pano_inference_impl import preload_models
 from app.worker import start_worker, stop_worker
 
 
@@ -40,6 +41,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     _apply_hf_home(settings.project_root, settings.hf_home)
     if settings.enable_redis:
+        preload_models(settings.project_root)
         start_worker(inference_service=DemoInProcessInferenceService(settings))
     yield
     if settings.enable_redis:

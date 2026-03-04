@@ -33,6 +33,61 @@ def _import_models():
     return PanoGenerator, PanoOutpaintGenerator
 
 
+# 模型缓存：key=(project_root_resolved, "text2pano"|"outpaint") -> (config, model)
+# 启动时预加载或首次任务时加载，后续任务直接复用，避免每次推理都加载权重
+_loaded_models: dict = {}
+
+
+def _load_text2pano(project_root: str):
+    """加载文生图配置与模型并移至 GPU，返回 (config, model)。"""
+    root = Path(project_root).resolve()
+    _ensure_project_root_in_path(project_root)
+    PanoGenerator, _ = _import_models()
+    with open(root / "configs" / "pano_generation.yaml", "rb") as f:
+        config = yaml.load(f, Loader=yaml.SafeLoader)
+    logger.info("[进度] 加载权重 pano.ckpt（文生图）...")
+    model = PanoGenerator(config)
+    ckpt = torch.load(str(root / "weights" / "pano.ckpt"), map_location="cpu")
+    model.load_state_dict(ckpt["state_dict"], strict=True)
+    model = model.cuda()
+    logger.info("[进度] 模型已加载并移至 GPU")
+    return config, model
+
+
+def _load_outpaint(project_root: str):
+    """加载外扩配置与模型并移至 GPU，返回 (config, model)。"""
+    root = Path(project_root).resolve()
+    _ensure_project_root_in_path(project_root)
+    _, PanoOutpaintGenerator = _import_models()
+    with open(root / "configs" / "pano_generation_outpaint.yaml", "rb") as f:
+        config = yaml.load(f, Loader=yaml.SafeLoader)
+    logger.info("[进度] 加载权重 pano_outpaint.ckpt（外扩）...")
+    model = PanoOutpaintGenerator(config)
+    ckpt = torch.load(str(root / "weights" / "pano_outpaint.ckpt"), map_location="cpu")
+    model.load_state_dict(ckpt["state_dict"], strict=True)
+    model = model.cuda()
+    logger.info("[进度] 模型已加载并移至 GPU")
+    return config, model
+
+
+def preload_models(project_root: str) -> None:
+    """
+    在项目启动时调用，预加载文生图与外扩模型到内存并移至 GPU。
+    后续每次处理任务将直接复用，无需重复加载，可显著减少单次推理耗时。
+    """
+    root_str = str(Path(project_root).resolve())
+    key_t = (root_str, "text2pano")
+    key_o = (root_str, "outpaint")
+    if key_t not in _loaded_models:
+        logger.info("[进度] 预加载文生图模型...")
+        _loaded_models[key_t] = _load_text2pano(project_root)
+        logger.info("[进度] 文生图模型预加载完成")
+    if key_o not in _loaded_models:
+        logger.info("[进度] 预加载外扩模型...")
+        _loaded_models[key_o] = _load_outpaint(project_root)
+        logger.info("[进度] 外扩模型预加载完成")
+
+
 def _get_K_R(FOV: float, THETA: float, PHI: float, height: int, width: int) -> Tuple[np.ndarray, np.ndarray]:
     f = 0.5 * width * 1 / np.tan(0.5 * FOV / 180.0 * np.pi)
     cx = (width - 1) / 2.0
@@ -80,30 +135,20 @@ def run_inference(
 
     _ensure_project_root_in_path(project_root)
     root = Path(project_root).resolve()
-    logger.info("[进度] 加载模型类...")
-    PanoGenerator, PanoOutpaintGenerator = _import_models()
+    root_str = str(root)
+    cache_key = (root_str, mode)
 
-    if not image_path or not image_path.strip():
-        logger.info("[进度] 加载配置 pano_generation.yaml ...")
-        with open(root / "configs" / "pano_generation.yaml", "rb") as f:
-            config = yaml.load(f, Loader=yaml.SafeLoader)
-        logger.info("[进度] 加载权重 pano.ckpt（文生图）...")
-        model = PanoGenerator(config)
-        ckpt = torch.load(str(root / "weights" / "pano.ckpt"), map_location="cpu")
-        model.load_state_dict(ckpt["state_dict"], strict=True)
-        model = model.cuda()
-        logger.info("[进度] 模型已加载并移至 GPU")
-        img = None
-    else:
-        logger.info("[进度] 加载配置 pano_generation_outpaint.yaml ...")
-        with open(root / "configs" / "pano_generation_outpaint.yaml", "rb") as f:
-            config = yaml.load(f, Loader=yaml.SafeLoader)
-        logger.info("[进度] 加载权重 pano_outpaint.ckpt（外扩）...")
-        model = PanoOutpaintGenerator(config)
-        ckpt = torch.load(str(root / "weights" / "pano_outpaint.ckpt"), map_location="cpu")
-        model.load_state_dict(ckpt["state_dict"], strict=True)
-        model = model.cuda()
-        logger.info("[进度] 模型已加载并移至 GPU，读取参考图...")
+    if cache_key not in _loaded_models:
+        if mode == "text2pano":
+            _loaded_models[cache_key] = _load_text2pano(project_root)
+        else:
+            _loaded_models[cache_key] = _load_outpaint(project_root)
+
+    config, model = _loaded_models[cache_key]
+    img = None
+
+    if image_path and image_path.strip():
+        logger.info("[进度] 使用已加载的外扩模型，读取参考图...")
         img_path = Path(image_path)
         if not img_path.is_absolute():
             img_path = root / img_path

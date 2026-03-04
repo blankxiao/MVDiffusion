@@ -12,6 +12,9 @@ if [ -f .env ]; then
   set +a
 fi
 
+# 使用 Hugging Face 镜像加速下载（若 .env 中已设置 HF_ENDPOINT 则沿用）
+export HF_ENDPOINT="${HF_ENDPOINT:-https://hf-mirror.com}"
+
 # 用 exec 让当前 shell 被 Python 进程替换，方便收 SIGTERM 优雅退出。
 # 等价于在 Python 里调 uvicorn.run("app.main:app", host=HTTP_HOST, port=HTTP_PORT)，
 # 即 uvicorn app.main:app --host "${HTTP_HOST:-0.0.0.0}" --port "${HTTP_PORT:-9000}"
