@@ -91,19 +91,22 @@ else:
     img=img/127.5-1       
     img=torch.tensor(img).cuda()
     
-    #read stable diffusion prompts from PNG
-    with ExifToolHelper() as et:
-        #print EXIF metadata
-        EXIF_dict = et.get_metadata(args.image_path)
-        print(f'Metadata: {EXIF_dict}')        
-        if 'PNG:Parameters' in EXIF_dict[0]:
-            PNGparameters = EXIF_dict[0]['PNG:Parameters']
-            parsed_parameters = PNGparameters.split("\n")        
-            positive_prompt = parsed_parameters[0]
-            negative_prompt = parsed_parameters[1]
-            print(f'Positive promts: ' +  positive_prompt)
-            print(f'Negative promts: ' +  negative_prompt)
-            args.text= positive_prompt
+    # read stable diffusion prompts from PNG (optional, 忽略 exiftool 缺失或版本过低)
+    try:
+        with ExifToolHelper() as et:
+            EXIF_dict = et.get_metadata(args.image_path)
+            print(f'Metadata: {EXIF_dict}')        
+            if 'PNG:Parameters' in EXIF_dict[0]:
+                PNGparameters = EXIF_dict[0]['PNG:Parameters']
+                parsed_parameters = PNGparameters.split("\n")        
+                positive_prompt = parsed_parameters[0]
+                negative_prompt = parsed_parameters[1]
+                print(f'Positive promts: ' +  positive_prompt)
+                print(f'Negative promts: ' +  negative_prompt)
+                args.text= positive_prompt
+    except Exception as e:
+        # exiftool 未安装或版本过低等问题：直接跳过，使用传入的 text/text_path
+        print(f"skip reading prompts from PNG due to exiftool error: {e}")
     
 resolution=config['dataset']['resolution']
 Rs=[]
